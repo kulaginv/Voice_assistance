@@ -8,8 +8,11 @@ import pyttsx3
 import speech_recognition as sr
 from lxml import etree
 
+import webbrowser
 import random  # генератор случайных чисел
 import datetime
+from pyowm import OWM
+import pyjokes
 #from termcolor import colored  # вывод цветных логов (для выделения распознанной речи)
 
 
@@ -20,8 +23,8 @@ class voiceAssistance:
     sex = ''
 
 class Me:
-    name = 'Vasily'
-    location = 'Grenoble'
+    name = 'vasily'
+    location = 'grenoble'
     sex = 'male'
     
         
@@ -79,7 +82,7 @@ def say_slower():
 
 def default_volum_speed():
     tts.setProperty('volume', 0.5)
-    tts.setProperty('rate', 150)
+    tts.setProperty('rate', 140)
 
 def record_audio():
     """
@@ -115,28 +118,91 @@ def record_audio():
 
         return recognized_data
     
+    
 def greetings(*args):
     gr = [
-        Traduction.get("greetings").format("You"),
-        Traduction.get(time_of_day()).format("You")
+        Traduction.get("greetings").format(Me.name),
+        Traduction.get("greetings_day").format(time_of_day(), Me.name)
     ]
     say(gr[random.randint(0, len(gr) - 1)])
+    
+    
+def farewell(*args):
+    fr = [
+        Traduction.get("farewell").format(Me.name),
+        Traduction.get("farewell_day").format(Me.name, time_of_day())
+        ]
+    say(fr[random.randint(0, len(fr) - 1)])
+    
     
 def time_of_day():
     hour = int(datetime.datetime.now().hour)
     if hour>= 0 and hour<12:
-        return 'greetings_morning'
+        return 'morning'
   
     elif hour>= 12 and hour<18:
-        return 'greetings_day'  
+        return 'afternoon'  
   
     else:
-        return 'greetings_evening'    
+        return 'evening'    
+    
+    
+def time_now(*args):
+    say(Traduction.get('time').format(int(datetime.datetime.now().hour), 
+                                      int(datetime.datetime.now().minute), 
+                                      int(datetime.datetime.now().second)))
+    
+def browser_search(*args):
+    if not args: return
+    request = " ".join(args[0])
+    url = "https://duckduckgo.com/?q="+request
+    webbrowser.open(url)
+    
+def premier_search(*args):
+    if not args: return
+    request = " ".join(args[0])
+    url = "https://premier.one/search?query="+request
+    webbrowser.open(url)
+    
+    
+def weather(*args):
+    if args[0]: city = args[0][0]
+    else: city = Me.location
+    try:
+        owm = OWM('d90b7a75bc7a523021d2719e2c3de7a6')
+        mgr = owm.weather_manager()
+        observation = mgr.weather_at_place(city)
+        w = observation.weather
+    except: return
+    
+    weather_status = w.detailed_status 
+    weather_wind = w.wind()["speed"]
+    weather_temperature = w.temperature('celsius')["temp"]
+    
+    print("Weather in " + city + " : " + weather_status + 
+          "\nTemperature is : " + str(weather_temperature) + " (Celsius)"
+          "\nSpeed of wind is : " + str(weather_wind) + " (m/sec)")
+    say(Traduction.get('weather').format(city, weather_status, weather_temperature, weather_wind))
+    
+    
+    
+def jokes(*args):
+    say(pyjokes.get_joke())
+
+
+
 
 commands = {
-    ("bonjour", "salut", "hello", "hi", "morning", "привет", "здравствуй"): greetings
-    
+    ("bonjour", "salut", "hello", "hi", "morning", "привет", "здравствуй"): greetings,
+    ("goodbye", "bye", "пока"): farewell,
+    ("time", "время"): time_now,
+    ("search","google","найди"): browser_search,
+    ("премьер"): premier_search,
+    ("weather", "погода"): weather,
+    ("joke", "шутка"): jokes,
 }
+
+
 
 def command_definition(command_name: str, *args):
     """
@@ -150,11 +216,12 @@ def command_definition(command_name: str, *args):
             commands[key](*args)
         else:
             pass  # print("Command not found")
+            
 
 if __name__ == '__main__': 
     
     voiceAssistance = voiceAssistance()
-    voiceAssistance.name = 'Kira'
+    voiceAssistance.name = 'kira'
     voiceAssistance.sex = 'female'
     voiceAssistance.language = 'en'
     

@@ -6,8 +6,12 @@ Created on Sat Jan 22 18:41:00 2022
 """
 import pyttsx3
 import speech_recognition as sr
-from lxml import etree
 
+from lxml import etree
+from nltk import word_tokenize, sent_tokenize
+from nltk.corpus import stopwords
+
+from googletrans import Translator
 import webbrowser
 import random  # генератор случайных чисел
 import datetime
@@ -21,6 +25,7 @@ class voiceAssistance:
     name = ''
     language = ''
     sex = ''
+    name_said = False
 
 class Me:
     name = 'vasily'
@@ -60,6 +65,7 @@ def define_voice():
             tts.setProperty('voice', voices[3].id)
         else: tts.setProperty('voice', voices[1].id)
     
+    
 def say(text):
     tts.say(text)
     tts.runAndWait()
@@ -82,9 +88,9 @@ def say_slower():
 
 def default_volum_speed():
     tts.setProperty('volume', 0.5)
-    tts.setProperty('rate', 140)
+    tts.setProperty('rate', 150)
 
-def record_audio():
+def record_audio(timeout=4, phrase_time_limit=5):
     """
     Enregistrement et reconnaissance audio
     """
@@ -99,8 +105,11 @@ def record_audio():
         #duration: le nombre maximal de secondes pour lesquelles on ajustera dynamiquement le seuil avant de revenir
 
         try:
+            if voiceAssistance.name_said:
+                say('Чем могу помочь ?')
             print("Listening...")
-            audio = recognizer.listen(source, timeout=4, phrase_time_limit=5)
+            audio = recognizer.listen(source, timeout=timeout, phrase_time_limit=phrase_time_limit)
+            voiceAssistance.name_said = False
 
         except sr.WaitTimeoutError:
             print("Can you check if your microphone is on, please?")
@@ -120,24 +129,29 @@ def record_audio():
     
     
 def greetings(*args):
+    t_day = translator.translate(time_of_day(), dest = voiceAssistance.language)
     gr = [
         Traduction.get("greetings").format(Me.name),
-        Traduction.get("greetings_day").format(time_of_day(), Me.name)
+        Traduction.get("greetings_day").format(t_day.text, Me.name)
     ]
     say(gr[random.randint(0, len(gr) - 1)])
     
     
 def farewell(*args):
+    t_day = translator.translate(time_of_day(), dest = voiceAssistance.language)
     fr = [
         Traduction.get("farewell").format(Me.name),
-        Traduction.get("farewell_day").format(Me.name, time_of_day())
+        Traduction.get("farewell_day").format(Me.name, t_day.text)
         ]
     say(fr[random.randint(0, len(fr) - 1)])
     
     
 def time_of_day():
     hour = int(datetime.datetime.now().hour)
-    if hour>= 0 and hour<12:
+    if hour>= 0 and hour<4:
+        return 'night'
+    
+    elif hour>= 4 and hour<12:
         return 'morning'
   
     elif hour>= 12 and hour<18:
@@ -166,42 +180,89 @@ def premier_search(*args):
     
     
 def weather(*args):
-    if args[0]: city = args[0][0]
-    else: city = Me.location
+    if args: 
+        town = args[0][0]
+        city = translator.translate(town)
+        city = city.text
+    else: 
+        city = Me.location
+        town = city
     try:
         owm = OWM('d90b7a75bc7a523021d2719e2c3de7a6')
         mgr = owm.weather_manager()
         observation = mgr.weather_at_place(city)
         w = observation.weather
     except: return
-    
-    weather_status = w.detailed_status 
+    weather_status = w.detailed_status
+    status = translator.translate(weather_status, dest = voiceAssistance.language)
+    status = status.text
     weather_wind = w.wind()["speed"]
     weather_temperature = w.temperature('celsius')["temp"]
+
     
     print("Weather in " + city + " : " + weather_status + 
           "\nTemperature is : " + str(weather_temperature) + " (Celsius)"
           "\nSpeed of wind is : " + str(weather_wind) + " (m/sec)")
-    say(Traduction.get('weather').format(city, weather_status, weather_temperature, weather_wind))
-    
+    say(Traduction.get('weather').format(town, status, weather_temperature, weather_wind))
     
     
 def jokes(*args):
-    say(pyjokes.get_joke())
+    joke_init = pyjokes.get_joke()
+    print(joke_init)
+    joke = translator.translate(joke_init, dest = voiceAssistance.language)
+    joke = joke.text
+    print(joke)
+    say(joke)
 
 
+def clean_sens(text):
+    if voiceAssistance.language == 'en':
+        stop_words = stopwords.words('english')
+    elif voiceAssistance.language == 'fr':
+        stop_words = stopwords.words('french')
+    else: stop_words = stopwords.words('russian')
+    
+    token = word_tokenize(text)
+    cleaned_token = []
+    for word in token:
+        if word not in stop_words:
+            cleaned_token.append(word)
+    return cleaned_token
 
+def say_name(*args):
+    names = ['alisa','alice','алиса']
+    name = False
+    while not name:
+        phrase = record_audio(timeout=0, phrase_time_limit=None)
+        phrase = clean_sens(phrase)
+        if phrase:
+            print(phrase)
+        for i in range(len(phrase)):
+            if phrase[i] in names:
+                name = True
+                break
+    voiceAssistance.name_said = True
+    
 
 commands = {
     ("bonjour", "salut", "hello", "hi", "morning", "привет", "здравствуй"): greetings,
     ("goodbye", "bye", "пока"): farewell,
     ("time", "время"): time_now,
+    ("joke", "шутка", "расскажи шутку", "скажи шутку"): jokes,
     ("search","google","найди"): browser_search,
     ("премьер"): premier_search,
-    ("weather", "погода"): weather,
-    ("joke", "шутка"): jokes,
+    ("weather","show weather", "погода", "temps"): weather,
 }
 
+def command_search(text):
+    for key in commands.keys():
+        for i in range(1,len(voice_input)+1):
+            if " ".join(voice_input[:i]) in key:
+                command = " ".join(voice_input[:i])
+                command_options = [str(option) for option in voice_input[i:len(voice_input)]]
+                return command, command_options
+    return 'no command'
+            
 
 
 def command_definition(command_name: str, *args):
@@ -223,21 +284,32 @@ if __name__ == '__main__':
     voiceAssistance = voiceAssistance()
     voiceAssistance.name = 'kira'
     voiceAssistance.sex = 'female'
-    voiceAssistance.language = 'en'
+    voiceAssistance.language = 'ru'
+
     
     tts = pyttsx3.init()
     define_voice()
     default_volum_speed()
     tree = etree.parse("traduction.xml")
+    translator = Translator()
+    
 
     # старт записи речи с последующим выводом распознанной речи
-    voice_input = record_audio()
+    #say_name()
+    voice_input = record_audio(timeout=4, phrase_time_limit=5)
     print(voice_input)
+    voice_input = clean_sens(voice_input)
     if voice_input: 
-        voice_input = voice_input.split(" ")
-        command = voice_input[0]
-        command_options = [str(option) for option in voice_input[1:len(voice_input)]]
-        command_definition(command, command_options)
+        if len(voice_input) == 1:
+            command = voice_input[0]
+            command_definition(command)
+        else:
+            command, command_options = command_search(voice_input)
+            command_definition(command, command_options)
+
+            
+            
+
 
         
     

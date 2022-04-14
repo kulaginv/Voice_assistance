@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<database>
+
+<phrase name="greetings">
+	<en lang="en">
+		Hello, {}! How can I help you?
+	</en>
+	<ru lang="ru">
+		Привет, {}! Чем я могу помочь?
+	</ru>
+</phrase>
+
+<phrase name="greetings_day">
+	<en lang="en">
+		Good {}, {}! How can I help you ?
+	</en>
+	<ru lang="ru">
+		Доброе {}, {}! Чем я могу помочь?
+	</ru>
+</phrase>
+
+<phrase name="farewell">
+	<en lang="en">
+		Goodbye, see you soon, {}!
+	</en>
+	<ru lang="ru">
+		До скорой встречи 
+	</ru>
+</phrase>
+
+<phrase name="farewell_day">
+	<en lang="en">
+		Goodbye, {}! Have a nice {}!
+	</en>
+	<ru lang="ru">
+		До свидания {}, ! Хорошего {}!
+	</ru>
+</phrase>
+
+
+<phrase name="time">
+	<en lang="en">
+		Now is {} hours, {} minuts and {} seconds
+	</en>
+	<ru lang="ru">
+		Сейчас {} часа, {} минут и {} секунд
+	</ru>
+</phrase>
+
+
+<phrase name="weather">
+	<en lang="en">
+		In {} now is {}, the temperature is {} degree Celsuis, the speed of wind is {} meters per seconds 
+	</en>
+	<ru lang="ru">
+		В {} сейчас {}, температура {} градусов Цельсия, скорость ветра {} метров в секунду
+	</ru>
+	<fr lang="fr">
+		In {} now is {}, the temperature is {} degree Celsuis, the speed of wind is {} meters per seconds 
+	</fr>
+</phrase>
+
+</database>

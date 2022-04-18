@@ -7,9 +7,15 @@ Created on Sat Jan 22 18:41:00 2022
 import pyttsx3
 import speech_recognition as sr
 
+import numpy as np
+
 from lxml import etree
-from nltk import word_tokenize, sent_tokenize
+from nltk import word_tokenize
 from nltk.corpus import stopwords
+
+import librosa
+import warnings
+warnings.filterwarnings("ignore")
 
 from googletrans import Translator
 import webbrowser
@@ -19,6 +25,10 @@ from pyowm import OWM
 import pyjokes
 #from termcolor import colored  # вывод цветных логов (для выделения распознанной речи)
 
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+
+
 
 class voiceAssistance:  
     
@@ -26,6 +36,7 @@ class voiceAssistance:
     language = ''
     sex = ''
     name_said = False
+    first = True
 
 class Me:
     name = 'vasily'
@@ -87,7 +98,7 @@ def say_slower():
     tts.setProperty('rate', rate-80)
 
 def default_volum_speed():
-    tts.setProperty('volume', 0.5)
+    tts.setProperty('volume', 1     )
     tts.setProperty('rate', 150)
 
 def record_audio(timeout=4, phrase_time_limit=5):
@@ -106,9 +117,14 @@ def record_audio(timeout=4, phrase_time_limit=5):
 
         try:
             if voiceAssistance.name_said:
-                say('Чем могу помочь ?')
+                if voiceAssistance.first: 
+                    greetings()
+                    voiceAssistance.first = False
+                say('Чем я могу помочь ?')
             print("Listening...")
             audio = recognizer.listen(source, timeout=timeout, phrase_time_limit=phrase_time_limit)
+            with open("microphone-result.wav", "wb") as file:
+                file.write(audio.get_wav_data())
             voiceAssistance.name_said = False
 
         except sr.WaitTimeoutError:
@@ -229,6 +245,7 @@ def clean_sens(text):
             cleaned_token.append(word)
     return cleaned_token
 
+
 def say_name(*args):
     names = ['alisa','alice','алиса']
     name = False
@@ -241,8 +258,45 @@ def say_name(*args):
             if phrase[i] in names:
                 name = True
                 break
-    voiceAssistance.name_said = True
+    #voiceAssistance.name_said = True
     
+def no_command(*args):
+    pass
+    
+
+def init_model():
+    model = Sequential()
+    model.add(Dense(256, input_shape=(128,)))
+    model.add(Dense(256, activation="relu"))
+    model.add(Dropout(0.25))
+    model.add(Dense(128, activation="relu"))
+    model.add(Dropout(0.25))
+    model.add(Dense(128, activation="relu"))
+    model.add(Dropout(0.25))
+    model.add(Dense(64, activation="relu"))
+    model.add(Dropout(0.25))
+    model.add(Dense(1, activation="sigmoid"))
+    model.compile(loss="binary_crossentropy", metrics=["accuracy"], optimizer="adam")
+    return model
+
+def get_mel_feature(file_name):
+    X, sample_rate = librosa.load(file_name)
+    result = np.array([])
+    mel = np.mean(librosa.feature.melspectrogram(X, sr=sample_rate).T,axis=0)
+    result = np.hstack((result, mel))
+    return result
+
+def sex_recognition(*args):
+    say('Скажите любое предложение')
+    record_audio()
+    features = get_mel_feature('microphone-result.wav').reshape(1, -1)
+    male = model.predict(features)[0][0]
+    female = 1 - male
+    gender = "male" if male > female else "female"
+    if gender == 'male': say(f'По моим подсчетам, вы с вероятностью {male*100:.2f}% являетесь мужчиной')  
+    else: say(f'По моим посчетам, вы с вероятностью {female*100:.2f}% являетесь девушкой')
+    print("Result:", gender)
+    print(f"Probabilities: Male: {male*100:.2f}%    Female: {female*100:.2f}%")
 
 commands = {
     ("bonjour", "salut", "hello", "hi", "morning", "привет", "здравствуй"): greetings,
@@ -252,7 +306,10 @@ commands = {
     ("search","google","найди"): browser_search,
     ("премьер"): premier_search,
     ("weather","show weather", "погода", "temps"): weather,
+    ('определи', 'voix'): sex_recognition,
+    ("no command"): no_command
 }
+
 
 def command_search(text):
     for key in commands.keys():
@@ -261,7 +318,7 @@ def command_search(text):
                 command = " ".join(voice_input[:i])
                 command_options = [str(option) for option in voice_input[i:len(voice_input)]]
                 return command, command_options
-    return 'no command'
+    return 'no command', ''
             
 
 
@@ -285,27 +342,30 @@ if __name__ == '__main__':
     voiceAssistance.name = 'kira'
     voiceAssistance.sex = 'female'
     voiceAssistance.language = 'ru'
-
+    
     
     tts = pyttsx3.init()
     define_voice()
     default_volum_speed()
     tree = etree.parse("traduction.xml")
     translator = Translator()
-    
+    model = init_model()
+    model.load_weights("data/model.h5")
 
     # старт записи речи с последующим выводом распознанной речи
     #say_name()
-    voice_input = record_audio(timeout=4, phrase_time_limit=5)
-    print(voice_input)
-    voice_input = clean_sens(voice_input)
-    if voice_input: 
-        if len(voice_input) == 1:
-            command = voice_input[0]
-            command_definition(command)
-        else:
-            command, command_options = command_search(voice_input)
-            command_definition(command, command_options)
+    command = ''
+    while(command != 'farewell'):
+        voice_input = record_audio(timeout=4, phrase_time_limit=5)
+        print(voice_input)
+        voice_input = clean_sens(voice_input)
+        if voice_input: 
+            if len(voice_input) == 1:
+                command = voice_input[0]
+                command_definition(command)
+            else:
+                command, command_options = command_search(voice_input)
+                command_definition(command, command_options)
 
             
             

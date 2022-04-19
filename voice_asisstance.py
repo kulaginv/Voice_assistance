@@ -4,27 +4,48 @@ Created on Sat Jan 22 18:41:00 2022
 
 @author: Vasily
 """
+# recognize and recorde speech
 import pyttsx3
 import speech_recognition as sr
 
+# matematical things
 import numpy as np
+import random  # генератор случайных чисел
 
+# make "beep" sounds
+import winsound
+
+# read xml files
 from lxml import etree
+
+# clear data (remove useless words)
 from nltk import word_tokenize
 from nltk.corpus import stopwords
 
+# mel spectrograme 
 import librosa
+
+# remove warning
 import warnings
 warnings.filterwarnings("ignore")
 
+# translator
 from googletrans import Translator
+
+# open web browser
 import webbrowser
-import random  # генератор случайных чисел
+
+# get real data and time
 import datetime
+
+# information about weather
 from pyowm import OWM
+
+# get jokes
 import pyjokes
 #from termcolor import colored  # вывод цветных логов (для выделения распознанной речи)
 
+# neural network
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 
@@ -36,7 +57,8 @@ class voiceAssistance:
     language = ''
     sex = ''
     name_said = False
-    first = True
+    first = False
+    go_sleep = False
 
 class Me:
     name = 'vasily'
@@ -59,10 +81,10 @@ class Traduction:
         for phrase in tree.xpath("/database/phrase"):
             if phrase.attrib['name'] == text :
                 return phrase.find(voiceAssistance.language).text
-        else:
+            else:
             # в случае отсутствия перевода происходит вывод сообщения об этом в логах и возврат исходного текста
             #print(colored("Not translated phrase: {}".format(text), "red"))
-            return text
+                return text
 
 
 def define_voice():
@@ -100,6 +122,8 @@ def say_slower():
 def default_volum_speed():
     tts.setProperty('volume', 1     )
     tts.setProperty('rate', 150)
+    
+
 
 def record_audio(timeout=4, phrase_time_limit=5):
     """
@@ -116,12 +140,13 @@ def record_audio(timeout=4, phrase_time_limit=5):
         #duration: le nombre maximal de secondes pour lesquelles on ajustera dynamiquement le seuil avant de revenir
 
         try:
-            if voiceAssistance.name_said:
-                if voiceAssistance.first: 
-                    greetings()
-                    voiceAssistance.first = False
-                say('Чем я могу помочь ?')
+            if voiceAssistance.first and voiceAssistance.name_said: 
+                greetings()
+                voiceAssistance.first = False
+            #say('Чем я могу помочь ?')
             print("Listening...")
+            if voiceAssistance.name_said:
+                winsound.Beep(1000, 500)
             audio = recognizer.listen(source, timeout=timeout, phrase_time_limit=phrase_time_limit)
             with open("microphone-result.wav", "wb") as file:
                 file.write(audio.get_wav_data())
@@ -160,6 +185,7 @@ def farewell(*args):
         Traduction.get("farewell_day").format(Me.name, t_day.text)
         ]
     say(fr[random.randint(0, len(fr) - 1)])
+    voiceAssistance.go_sleep = True
     
     
 def time_of_day():
@@ -257,8 +283,8 @@ def say_name(*args):
         for i in range(len(phrase)):
             if phrase[i] in names:
                 name = True
-                break
-    #voiceAssistance.name_said = True
+                break   
+    voiceAssistance.name_said = True
     
 def no_command(*args):
     pass
@@ -301,6 +327,11 @@ def sex_recognition(*args):
 commands = {
     ("bonjour", "salut", "hello", "hi", "morning", "привет", "здравствуй"): greetings,
     ("goodbye", "bye", "пока"): farewell,
+    ("громче"): say_louder,
+    ("тише"): say_quieter,
+    ("быстрее"): say_faster,
+    ("медленнее"): say_slower,
+    ("обычная"): default_volum_speed,
     ("time", "время"): time_now,
     ("joke", "шутка", "расскажи шутку", "скажи шутку"): jokes,
     ("search","google","найди"): browser_search,
@@ -353,9 +384,9 @@ if __name__ == '__main__':
     model.load_weights("data/model.h5")
 
     # старт записи речи с последующим выводом распознанной речи
-    #say_name()
-    command = ''
-    while(command != 'farewell'):
+    voiceAssistance.first = True 
+    while(not voiceAssistance.go_sleep):
+        say_name()
         voice_input = record_audio(timeout=4, phrase_time_limit=5)
         print(voice_input)
         voice_input = clean_sens(voice_input)

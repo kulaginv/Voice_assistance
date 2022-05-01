@@ -8,9 +8,20 @@ Created on Sat Jan 22 18:41:00 2022
 import pyttsx3
 import speech_recognition as sr
 
+# offline recognition
+from vosk import Model, KaldiRecognizer, SetLogLevel
+SetLogLevel(-1) 
+
+# to work with the operating system
+import os
+
+# to work with wave and json formats files
+import wave
+import json
+
 # matematical things
 import numpy as np
-import random  # генератор случайных чисел
+import random
 
 # make "beep" sounds
 import winsound
@@ -22,12 +33,8 @@ from lxml import etree
 from nltk import word_tokenize
 from nltk.corpus import stopwords
 
-# mel spectrograme 
+# package for music and audio analysis
 import librosa
-
-# remove warning
-import warnings
-warnings.filterwarnings("ignore")
 
 # translator
 from googletrans import Translator
@@ -46,6 +53,7 @@ import pyjokes
 #from termcolor import colored  # вывод цветных логов (для выделения распознанной речи)
 
 # neural network
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' #INFO, WARNING, and ERROR messages are not printed, 0 for all messages 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 
@@ -59,35 +67,40 @@ class voiceAssistance:
     name_said = False
     first = False
     go_sleep = False
+    offline = False
 
 class Me:
     name = 'vasily'
-    location = 'grenoble'
+    location = 'paris'
     sex = 'male'
     
         
 class Traduction:
     """
-    Получение вшитого в приложение перевода строк для создания мультиязычного ассистента
+    Getting a line translation sewn into the application to create a multilingual assistant
     """
     traduction = etree.parse("traduction.xml")
 
     def get(text: str):
         """
-        Получение перевода строки из файла на нужный язык (по его коду)
-        :param text: текст, который требуется перевести
-        :return: вшитый в приложение перевод текста
+        Getting a line translation from a file to the desired language
+        :param text type str: the text to be translated
+        :return: text translation 
         """
         for phrase in tree.xpath("/database/phrase"):
             if phrase.attrib['name'] == text :
                 return phrase.find(voiceAssistance.language).text
-            else:
+            #else:
             # в случае отсутствия перевода происходит вывод сообщения об этом в логах и возврат исходного текста
             #print(colored("Not translated phrase: {}".format(text), "red"))
-                return text
+        return text
 
 
 def define_voice():
+    """
+    Choosing the language and gender of the assistant
+    :return: None
+    """
     voices = tts.getProperty('voices')
     if voiceAssistance.language == 'fr':
         tts.setProperty('voice', voices[2].id)
@@ -100,34 +113,62 @@ def define_voice():
     
     
 def say(text):
+    """
+    Pronounce the entered text
+    :param text: text to read
+    :return: None
+    """
     tts.say(text)
     tts.runAndWait()
 
 def say_louder():
+    """
+    Say the text louder
+    :return: None
+    """
     volume = tts.getProperty('volume')
     tts.setProperty('volume', volume+0.2)
     
 def say_quieter():
+    """
+    Say the text quieter
+    :return: None
+    """
     volume = tts.getProperty('volume')
     tts.setProperty('volume', volume-0.2)
     
 def say_faster():
+    """
+    Say the text faster
+    :return: None
+    """
     rate = tts.getProperty('rate')
     tts.setProperty('rate', rate+80)
     
 def say_slower():
+    """
+    Say the text slower
+    :return: None
+    """
     rate = tts.getProperty('rate')
     tts.setProperty('rate', rate-80)
 
 def default_volum_speed():
-    tts.setProperty('volume', 1     )
+    """
+    Default volum and speed
+    :return: None
+    """
+    tts.setProperty('volume', 1)
     tts.setProperty('rate', 150)
     
 
 
 def record_audio(timeout=4, phrase_time_limit=5):
     """
-    Enregistrement et reconnaissance audio
+    Audio recording and recognition
+    :param timeout: maximum number of seconds that this will wait for a phrase to start
+    :param phrase_time_limit: maximum number of seconds that this will allow a phrase to continue
+    :return:  recognized data
     """
     recognizer = sr.Recognizer()
     microphone = sr.Microphone()
@@ -141,9 +182,8 @@ def record_audio(timeout=4, phrase_time_limit=5):
 
         try:
             if voiceAssistance.first and voiceAssistance.name_said: 
-                greetings()
+                command_definition("hi")
                 voiceAssistance.first = False
-            #say('Чем я могу помочь ?')
             print("Listening...")
             if voiceAssistance.name_said:
                 winsound.Beep(1000, 500)
@@ -164,31 +204,82 @@ def record_audio(timeout=4, phrase_time_limit=5):
 
         # в случае проблем с доступом в Интернет происходит выброс ошибки
         except sr.RequestError:
-            print("Check your Internet Connection, please")
+            print("Offline recognitions")
+            if not voiceAssistance.offline:
+                say(Traduction.get('offline_text'))
+            voiceAssistance.offline = True
+            recognized_data = offline_recognition()
 
         return recognized_data
     
+
+def offline_recognition():
+    """
+    Offline audio recognition
+    :return: recognized data
+    """
+    recognized_data = ''
+    try:
+        wf = wave.open("microphone-result.wav", "rb")
+        model = Model("offline/vosk-model-small-"+voiceAssistance.language)
+        # download models: https://alphacephei.com/vosk/models
+        offline_recognizer = KaldiRecognizer(model, wf.getframerate())
+
+        while True:
+            data = wf.readframes(1000)
+            if len(data) == 0:
+                break
+            if offline_recognizer.AcceptWaveform(data):
+                print(offline_recognizer.Result())
+        recognized_data = json.loads(offline_recognizer.FinalResult())
+    except:
+        print("Sorry, speech service is unavailable. Try again later")
+        
+    return recognized_data["text"]
     
+
 def greetings(*args):
-    t_day = translator.translate(time_of_day(), dest = voiceAssistance.language)
+    """
+    Say the greeting phrase
+    :param args: None
+    :return: None
+    """
+    try:
+        t_day = translator.translate(time_of_day(), dest = voiceAssistance.language)
+        t_day = t_day.text
+    except:
+        t_day = time_of_day()
     gr = [
         Traduction.get("greetings").format(Me.name),
-        Traduction.get("greetings_day").format(t_day.text, Me.name)
+        Traduction.get("greetings_day").format(t_day, Me.name)
     ]
     say(gr[random.randint(0, len(gr) - 1)])
     
     
 def farewell(*args):
-    t_day = translator.translate(time_of_day(), dest = voiceAssistance.language)
+    """
+    Say the farewell phrase
+    :param args: None
+    :return: None
+    """
+    try:
+        t_day = translator.translate(time_of_day(), dest = voiceAssistance.language)
+        t_day = t_day.text
+    except:
+        t_day = time_of_day()
     fr = [
         Traduction.get("farewell").format(Me.name),
-        Traduction.get("farewell_day").format(Me.name, t_day.text)
+        Traduction.get("farewell_day").format(Me.name, t_day)
         ]
     say(fr[random.randint(0, len(fr) - 1)])
     voiceAssistance.go_sleep = True
     
     
 def time_of_day():
+    """
+    Get the current time of day
+    :return: the current time of day
+    """
     hour = int(datetime.datetime.now().hour)
     if hour>= 0 and hour<4:
         return 'night'
@@ -204,17 +295,32 @@ def time_of_day():
     
     
 def time_now(*args):
+    """
+    Get the current time
+    :param args: None
+    :return: None
+    """
     say(Traduction.get('time').format(int(datetime.datetime.now().hour), 
                                       int(datetime.datetime.now().minute), 
                                       int(datetime.datetime.now().second)))
     
 def browser_search(*args):
+    """
+    Search for information in the browser
+    :param args: search keywords
+    :return: None
+    """
     if not args: return
     request = " ".join(args[0])
     url = "https://duckduckgo.com/?q="+request
     webbrowser.open(url)
     
 def premier_search(*args):
+    """
+    Search for a series on the 'premier' service
+    :param args: search keywords
+    :return: None
+    """
     if not args: return
     request = " ".join(args[0])
     url = "https://premier.one/search?query="+request
@@ -222,6 +328,11 @@ def premier_search(*args):
     
     
 def weather(*args):
+    """
+    Get information about the weather in the city
+    :param args: the city where you need to find out the weather
+    :return: None
+    """
     if args: 
         town = args[0][0]
         city = translator.translate(town)
@@ -230,11 +341,15 @@ def weather(*args):
         city = Me.location
         town = city
     try:
-        owm = OWM('d90b7a75bc7a523021d2719e2c3de7a6')
+        #use my API KEY for openweathermap
+        owm = OWM(os.getenv('WHEATHER_KEY'))
         mgr = owm.weather_manager()
         observation = mgr.weather_at_place(city)
         w = observation.weather
-    except: return
+    except: 
+        say(Traduction.get('unavailable_service'))
+        return
+    
     weather_status = w.detailed_status
     status = translator.translate(weather_status, dest = voiceAssistance.language)
     status = status.text
@@ -247,17 +362,30 @@ def weather(*args):
           "\nSpeed of wind is : " + str(weather_wind) + " (m/sec)")
     say(Traduction.get('weather').format(town, status, weather_temperature, weather_wind))
     
-    
+            
 def jokes(*args):
+    """
+    Listen to a joke
+    :param args: None
+    :return: None
+    """
     joke_init = pyjokes.get_joke()
     print(joke_init)
-    joke = translator.translate(joke_init, dest = voiceAssistance.language)
-    joke = joke.text
-    print(joke)
+    try:
+        joke = translator.translate(joke_init, dest = voiceAssistance.language)
+        joke = joke.text
+        print(joke)
+    except:
+        joke = joke_init
     say(joke)
 
 
 def clean_sens(text):
+    """
+    Clears the text from words that do not carry a semantic load
+    :text args: the text that needs to be cleaned
+    :return: cleared text
+    """
     if voiceAssistance.language == 'en':
         stop_words = stopwords.words('english')
     elif voiceAssistance.language == 'fr':
@@ -273,7 +401,12 @@ def clean_sens(text):
 
 
 def say_name(*args):
-    names = ['alisa','alice','алиса']
+    """
+    Check if the assistant's name has been said
+    :text args: heard text
+    :return: None
+    """
+    names = ["alice", "alis", "alicia", "alison", "allie", "alisa", "алиса", "алис"]
     name = False
     while not name:
         phrase = record_audio(timeout=0, phrase_time_limit=None)
@@ -287,10 +420,19 @@ def say_name(*args):
     voiceAssistance.name_said = True
     
 def no_command(*args):
+    """
+    The command was not found
+    :text args: None
+    :return: None
+    """
     pass
     
 
 def init_model():
+    """
+    Initialize a model for a neural network
+    :return: ready-made model
+    """
     model = Sequential()
     model.add(Dense(256, input_shape=(128,)))
     model.add(Dense(256, activation="relu"))
@@ -306,6 +448,11 @@ def init_model():
     return model
 
 def get_mel_feature(file_name):
+    """
+    Mel-frequency spectrogram analysis
+    :text file_name: audio file 
+    :return: result of mel-frequency spectrogram analysis
+    """
     X, sample_rate = librosa.load(file_name)
     result = np.array([])
     mel = np.mean(librosa.feature.melspectrogram(X, sr=sample_rate).T,axis=0)
@@ -313,36 +460,102 @@ def get_mel_feature(file_name):
     return result
 
 def sex_recognition(*args):
-    say('Скажите любое предложение')
-    record_audio()
+    """
+    Determine gender by voice
+    :text args: part of the data from the audio file 
+    :return: definite gender
+    """
+    if len(args[0]) < 2:
+        say(Traduction.get('say_phrase'))
+        voiceAssistance.name_said = True
+        record_audio()
     features = get_mel_feature('microphone-result.wav').reshape(1, -1)
     male = model.predict(features)[0][0]
     female = 1 - male
     gender = "male" if male > female else "female"
-    if gender == 'male': say(f'По моим подсчетам, вы с вероятностью {male*100:.2f}% являетесь мужчиной')  
-    else: say(f'По моим посчетам, вы с вероятностью {female*100:.2f}% являетесь девушкой')
+    try:
+        sex = translator.translate(gender, dest = voiceAssistance.language)
+        sex = sex.text
+    except:
+        sex = gender
     print("Result:", gender)
     print(f"Probabilities: Male: {male*100:.2f}%    Female: {female*100:.2f}%")
+    if gender == 'male': say(Traduction.get("sex_recognition_result").format(round(male*100,2), sex))  
+    else: say(Traduction.get("sex_recognition_result").format(round(male*100,2), sex))
+    return gender
+    
+    
+def change_language(*args):
+    """
+    Change the language
+    :text args: None
+    :return: None
+    """
+    voiceAssistance.name_said = True
+    cur_lang = voiceAssistance.language
+    say(Traduction.get('change_lang'))
+    lang = record_audio()
+    if lang in ['английский','english','anglais']: 
+        voiceAssistance.language = 'en'
+    elif lang in ['французский','french','français']: 
+        voiceAssistance.language = 'fr'
+    elif lang in ['русский','russian','russe']: 
+        voiceAssistance.language = 'ru'
+    else: say(Traduction.get('no_lang'))
+    if voiceAssistance.language != cur_lang:
+        define_voice()
+        say(Traduction.get('new_lang'))
 
 commands = {
-    ("bonjour", "salut", "hello", "hi", "morning", "привет", "здравствуй"): greetings,
-    ("goodbye", "bye", "пока"): farewell,
-    ("громче"): say_louder,
-    ("тише"): say_quieter,
-    ("быстрее"): say_faster,
-    ("медленнее"): say_slower,
-    ("обычная"): default_volum_speed,
-    ("time", "время"): time_now,
-    ("joke", "шутка", "расскажи шутку", "скажи шутку"): jokes,
-    ("search","google","найди"): browser_search,
-    ("премьер"): premier_search,
-    ("weather","show weather", "погода", "temps"): weather,
-    ('определи', 'voix'): sex_recognition,
+    ("привет", "здравствуй", "доброе утро", "добрый день", "добрый вечер",
+     "hello", "hi", "good morning", "good evening", "good night",
+     "bonjour", "salut", "bonsoir" ): greetings,
+    ("пока", "свидвния", "прощай",
+     "goodbye", "bye", 
+     "salut", "revoir", "adieu"): farewell,
+    ("громче", "сделай громче", "прибавь громкость", "говори громче",
+     "louder", "make louder", "say louder"
+     "plus fort", "dis plus fort", "fait plus fort"): say_louder,
+    ("тише", "сделай тише", "убавь громкость", "говори тише",
+     "hush", "make quieter", "say quieter",
+     "chut", "faire plus calme", "dire plus calme", "fait plus calme"): say_quieter, #bas
+    ("быстрее", "скажи быстрее", "говори быстрее", "происноси слова быстрее",
+     "faster", "say faster", "speak faster", "pronounce words faster",
+     "plus vite", "dis plus vite", "parles plus vite", "prononces mots plus vite"): say_faster,
+    ("медленнее", "скажи медленнее", "говори медленнее", "происноси слова медленнее",
+     "slower", "say slower", "speak slower", "pronounce words slower",
+     "moins vite", "dis moins vite", "parles moins vite", "prononces mots moins vite"): say_slower,
+    ("обычная скорость", "обычная громкость", "изначальгые скорость громкость",
+     "normal speed", "normal volume", "initial speed volume",
+     "vitesse normale", "volume normal", "vitesse volume initiales"): default_volum_speed,
+    ("время", "скажи время", "сколько времени", "который час",
+     "time", "say time", "tell time",
+     "dis temps", "combien temps", "quelle heure"): time_now,
+    ("шутка", "расскажи шутку", "скажи шутку",
+     "joke", "tell joke", "say joke",
+     "blague", "dis blague", "raconte blague"): jokes,
+    ("search","google",
+     "найди"): browser_search,
+    ("премьер", "включи премьер", "включи premier", "premier"): premier_search,
+    ("погода", "покажи погоду",
+     "weather", "show weather",
+     "temps", "montre temps", "météo", "montre météo"): weather,
+    ("определи пол", "пол", 
+     "define gender", "gender", "define sex", "sex",
+     "détermine sexe", "identifies sexe", "sexe"): sex_recognition,
+    ("сменить язык", "поменять язык", "хочу сменить язык", "хочу поменять язык", "смена языка", "смени язык", "поменяй язык",
+     "change language",
+     "changer langue", "change langue"): change_language,
     ("no command"): no_command
 }
 
 
 def command_search(text):
+    """
+    Search for a command and transfer options for it
+    :param text: input text
+    :return: command with command options 
+    """
     for key in commands.keys():
         for i in range(1,len(voice_input)+1):
             if " ".join(voice_input[:i]) in key:
@@ -355,10 +568,10 @@ def command_search(text):
 
 def command_definition(command_name: str, *args):
     """
-    Выполнение заданной пользователем команды и аргументами
-    :param command_name: название команды
-    :param args: аргументы, которые будут переданы в метод
-    :return:
+    Executing a user-defined command and arguments
+    :param command_name: command name
+    :param args: arguments to be passed to the method
+    :return: None
     """
     for key in commands.keys():
         if command_name in key:
@@ -370,7 +583,7 @@ def command_definition(command_name: str, *args):
 if __name__ == '__main__': 
     
     voiceAssistance = voiceAssistance()
-    voiceAssistance.name = 'kira'
+    voiceAssistance.name = 'alice'
     voiceAssistance.sex = 'female'
     voiceAssistance.language = 'ru'
     
@@ -383,7 +596,7 @@ if __name__ == '__main__':
     model = init_model()
     model.load_weights("data/model.h5")
 
-    # старт записи речи с последующим выводом распознанной речи
+    # Start of speech recording and command execution
     voiceAssistance.first = True 
     while(not voiceAssistance.go_sleep):
         say_name()

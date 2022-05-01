@@ -9,15 +9,21 @@
 	<ru lang="ru">
 		Привет, {}! Чем я могу помочь?
 	</ru>
+	<fr lang="fr">
+		Salut, {}! Comment je peux t'aider?
+	</fr>
 </phrase>
 
 <phrase name="greetings_day">
-	<en lang="en">
-		Good {}, {}! How can I help you ?
+	<en lang="en">	
+		Good {}, {}! How can I help you?
 	</en>
 	<ru lang="ru">
 		Доброе {}, {}! Чем я могу помочь?
 	</ru>
+	<fr lang="fr">
+		Bon {}, {}! Comment je peux t'aider?
+	</fr>
 </phrase>
 
 <phrase name="farewell">
@@ -25,8 +31,11 @@
 		Goodbye, see you soon, {}!
 	</en>
 	<ru lang="ru">
-		До скорой встречи 
+		До скорой встречи, {}! 
 	</ru>
+	<fr lang="fr">
+		Au revoir, à bientôt, {}!
+	</fr>
 </phrase>
 
 <phrase name="farewell_day">
@@ -34,10 +43,12 @@
 		Goodbye, {}! Have a nice {}!
 	</en>
 	<ru lang="ru">
-		До свидания {}, ! Хорошего {}!
+		До свидания {}! Хорошего {}!
 	</ru>
+	<fr lang="fr">
+		Au revoir, {}! Passez un bon {}!
+	</fr>
 </phrase>
-
 
 <phrase name="time">
 	<en lang="en">
@@ -46,8 +57,10 @@
 	<ru lang="ru">
 		Сейчас {} часа, {} минут и {} секунд
 	</ru>
+	<fr lang="fr">
+		Maintenant c'est {} heures, {} minutes et {} secondes
+	</fr>
 </phrase>
-
 
 <phrase name="weather">
 	<en lang="en">
@@ -57,7 +70,91 @@
 		В {} сейчас {}, температура {} градусов Цельсия, скорость ветра {} метров в секунду
 	</ru>
 	<fr lang="fr">
-		In {} now is {}, the temperature is {} degree Celsuis, the speed of wind is {} meters per seconds 
+		A {} est maintenant {}, la température est de {} degrés Celsius, la vitesse du vent est de {} mètres par seconde 
+	</fr>
+</phrase>
+
+<phrase name="say_phrase">
+	<en lang="en">
+		After the beep, say any sentence, preferably at least three words 
+	</en>
+	<ru lang="ru">
+		После звукового сигнала скажите любое предложение, желательно не меньше трех слов
+	</ru>
+	<fr lang="fr">
+		Après le bip, dites n'importe quelle phrase, de préférence au moins trois mots
+	</fr>
+</phrase>
+
+<phrase name="sex_recognition_result">
+	<en lang="en">
+		According to my calculations, you are with a probability of {}% are a girl 
+	</en>
+	<ru lang="ru">
+		По моим подсчетам, вы с вероятностью {}% являетесь {}
+	</ru>
+	<fr lang="fr">
+		Selon mes calculs, vous êtes avec la probabilité {} % êtes {}
+	</fr>
+</phrase>
+
+<phrase name="change_lang">
+	<en lang="en">
+		Which language do you want to choose? Russian, English or French 
+	</en>
+	<ru lang="ru">
+		Какой язык вы хотите выбрать? Русский, английский или французский
+	</ru>
+	<fr lang="fr">
+		Quelle langue voulez-vous choisir? Russe, anglais ou français 
+	</fr>
+</phrase>
+
+<phrase name="no_lang">
+	<en lang="en">
+		I'm sorry, I don't know this language yet 
+	</en>
+	<ru lang="ru">
+		Простите, я пока еще не знаю этого языка
+	</ru>
+	<fr lang="fr">
+		Désolé, je ne connais pas encore cette langue 
+	</fr>
+</phrase>
+
+<phrase name="new_lang">
+	<en lang="en">
+		Language changed successfully
+	</en>
+	<ru lang="ru">
+		Язык успешно изменен
+	</ru>
+	<fr lang="fr">
+		Langue changée avec succès 
+	</fr>
+</phrase>
+
+<phrase name="unavailable_service">
+	<en lang="en">
+		This service is temporarily unavailable
+	</en>
+	<ru lang="ru">
+		Этот сервис временно недоступен 
+	</ru>
+	<fr lang="fr">
+		Ce service est temporairement indisponible
+	</fr>
+</phrase>
+
+<phrase name="offline_text">
+	<en lang="en">
+		
+	</en>
+	<ru lang="ru">
+		Прошу прощение, в оффлайн версии некоторые слова могу прочитать только на английском языке
+	</ru>
+	<fr lang="fr">
+		Désolé, dans la version hors ligne, certains mots ne peuvent être lus qu'en anglais
 	</fr>
 </phrase>
 
